@@ -12,3 +12,4 @@ Flask-BasicAuth==0.2.0
 gunicorn
 torch==2.2.1
 torchvision
+gevent 
