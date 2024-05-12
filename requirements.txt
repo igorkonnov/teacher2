@@ -1,0 +1,15 @@
+dash==2.10.2
+dash-auth==2.0.0
+dash-bootstrap-components==1.4.1
+dash-uploader==0.6.0
+dash-bootstrap-components==1.0.3
+Pillow==8.3.1
+easyocr==1.7.1
+pdf2image==1.16.0
+numpy==1.21.2
+openai==1.2.3
+Flask==2.2.5
+Flask-BasicAuth==0.2.0
+gunicorn
+torch==2.2.1
+torchvision==0.17.1
