@@ -15,6 +15,8 @@ from google.cloud import vision
 import json
 from google.oauth2 import service_account
 
+client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+
 # Initialize and configure the Google Cloud credentials
 def get_google_credentials():
     encoded_json_string = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
