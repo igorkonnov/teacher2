@@ -13,4 +13,4 @@ gunicorn
 torch==2.2.1
 torchvision
 gevent 
-google-cloud-vision
+google-cloud-vision==3.7.2
