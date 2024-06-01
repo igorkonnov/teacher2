@@ -2,49 +2,46 @@ import base64
 import io
 import threading
 from PIL import Image
-
 from pdf2image import convert_from_bytes
 import dash
 from dash.dependencies import Input, Output, State
 from dash import dcc, html
-from openai import OpenAI
 import os
 import numpy as np
 import dash_bootstrap_components as dbc
 from flask import Flask
 from flask_basicauth import BasicAuth
 from google.cloud import vision
-
 import json
 from google.oauth2 import service_account
-# Load credentials outside the function to avoid redundancy
-encoded_json_string = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-if encoded_json_string:
-    json_string = base64.b64decode(encoded_json_string).decode('utf-8')
-    credentials_dict = json.loads(json_string)
-    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
-else:
-    print("No credentials found in environment. Please check your deployment settings.")
-    credentials = None
 
-def easyocr_reader(image, credentials):
-    if credentials is None:
-        raise Exception("No valid credentials provided.")
+# Initialize and configure the Google Cloud credentials
+def get_google_credentials():
+    encoded_json_string = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+    if encoded_json_string:
+        json_string = base64.b64decode(encoded_json_string).decode('utf-8')
+        credentials_dict = json.loads(json_string)
+        return service_account.Credentials.from_service_account_info(credentials_dict)
+    else:
+        print("No credentials found in environment. Please check your deployment settings.")
+        return None
+
+credentials = get_google_credentials()
+vision_client = vision.ImageAnnotatorClient(credentials=credentials) if credentials else None
+
+def easyocr_reader(image):
+    if not vision_client:
+        raise Exception("No valid Google Cloud credentials are available.")
     
-    # Initialize the client with the credentials
-    client = vision.ImageAnnotatorClient(credentials=credentials)
-
     # Convert the image to bytes
     image = Image.fromarray(np.array(image))
     buffered = io.BytesIO()
     image.save(buffered, format="JPEG")
     content = buffered.getvalue()
 
-    # Create an image object
+    # Create an image object and perform text detection
     image = vision.Image(content=content)
-
-    # Perform text detection
-    response = client.text_detection(image=image)
+    response = vision_client.text_detection(image=image)
     texts = response.text_annotations
 
     # Check for errors in the response
@@ -53,7 +50,6 @@ def easyocr_reader(image, credentials):
 
     # Extract the detected text
     results = [text.description for text in texts]
-
     return ' '.join(results)
 
 
