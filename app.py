@@ -15,9 +15,46 @@ from flask import Flask
 from flask_basicauth import BasicAuth
 from google.cloud import vision
 
-client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+import json
+from google.oauth2 import service_account
+# Load credentials outside the function to avoid redundancy
+encoded_json_string = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+if encoded_json_string:
+    json_string = base64.b64decode(encoded_json_string).decode('utf-8')
+    credentials_dict = json.loads(json_string)
+    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+else:
+    print("No credentials found in environment. Please check your deployment settings.")
+    credentials = None
 
-os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+def easyocr_reader(image, credentials):
+    if credentials is None:
+        raise Exception("No valid credentials provided.")
+    
+    # Initialize the client with the credentials
+    client = vision.ImageAnnotatorClient(credentials=credentials)
+
+    # Convert the image to bytes
+    image = Image.fromarray(np.array(image))
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG")
+    content = buffered.getvalue()
+
+    # Create an image object
+    image = vision.Image(content=content)
+
+    # Perform text detection
+    response = client.text_detection(image=image)
+    texts = response.text_annotations
+
+    # Check for errors in the response
+    if response.error.message:
+        raise Exception(f'{response.error.message}')
+
+    # Extract the detected text
+    results = [text.description for text in texts]
+
+    return ' '.join(results)
 
 
 server = Flask(__name__)
@@ -127,31 +164,6 @@ def generate_image(prompt, size="1024x1024", quality="standard"):
     return response.data[0].url
 
 
-def easyocr_reader(image):
-    # Initialize the client
-    client = vision.ImageAnnotatorClient()
-
-    # Convert the image to bytes
-    image = Image.fromarray(np.array(image))
-    buffered = io.BytesIO()
-    image.save(buffered, format="JPEG")
-    content = buffered.getvalue()
-
-    # Create an image object
-    image = vision.Image(content=content)
-
-    # Perform text detection
-    response = client.text_detection(image=image)
-    texts = response.text_annotations
-
-    # Check for errors in the response
-    if response.error.message:
-        raise Exception(f'{response.error.message}')
-
-    # Extract the detected text
-    results = [text.description for text in texts]
-
-    return ' '.join(results)
 
 
 @app.callback(
