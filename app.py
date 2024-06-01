@@ -15,7 +15,7 @@ from google.cloud import vision
 import json
 from google.oauth2 import service_account
 
-client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+
 
 # Initialize and configure the Google Cloud credentials
 def get_google_credentials():
@@ -54,7 +54,7 @@ def easyocr_reader(image):
     results = [text.description for text in texts]
     return ' '.join(results)
 
-
+client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 server = Flask(__name__)
 
 server.config['BASIC_AUTH_USERNAME'] = os.environ.get('BASIC_AUTH_PASSWORD')  # Replace with your desired username
