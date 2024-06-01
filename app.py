@@ -2,62 +2,27 @@ import base64
 import io
 import threading
 from PIL import Image
+
 from pdf2image import convert_from_bytes
 import dash
 from dash.dependencies import Input, Output, State
 from dash import dcc, html
+from openai import OpenAI
 import os
 import numpy as np
 import dash_bootstrap_components as dbc
 from flask import Flask
 from flask_basicauth import BasicAuth
 from google.cloud import vision
-import json
-from google.oauth2 import service_account
-
-
-
-# Initialize and configure the Google Cloud credentials
-def get_google_credentials():
-    encoded_json_string = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
-    if encoded_json_string:
-        json_string = base64.b64decode(encoded_json_string).decode('utf-8')
-        credentials_dict = json.loads(json_string)
-        return service_account.Credentials.from_service_account_info(credentials_dict)
-    else:
-        print("No credentials found in environment. Please check your deployment settings.")
-        return None
-
-credentials = get_google_credentials()
-vision_client = vision.ImageAnnotatorClient(credentials=credentials) if credentials else None
-
-def easyocr_reader(image):
-    if not vision_client:
-        raise Exception("No valid Google Cloud credentials are available.")
-    
-    # Convert the image to bytes
-    image = Image.fromarray(np.array(image))
-    buffered = io.BytesIO()
-    image.save(buffered, format="JPEG")
-    content = buffered.getvalue()
-
-    # Create an image object and perform text detection
-    image = vision.Image(content=content)
-    response = vision_client.text_detection(image=image)
-    texts = response.text_annotations
-
-    # Check for errors in the response
-    if response.error.message:
-        raise Exception(f'{response.error.message}')
-
-    # Extract the detected text
-    results = [text.description for text in texts]
-    return ' '.join(results)
 
 client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
+
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+
+
 server = Flask(__name__)
 
-server.config['BASIC_AUTH_USERNAME'] = os.environ.get('BASIC_AUTH_PASSWORD')  # Replace with your desired username
+server.config['BASIC_AUTH_USERNAME'] = os.environ.get('BASIC_AUTH_USERNAME')  # Replace with your desired username
 server.config['BASIC_AUTH_PASSWORD'] = os.environ.get('BASIC_AUTH_PASSWORD')  # Replace with your desired password
 server.config['BASIC_AUTH_FORCE'] = True
 # This will force BasicAuth on all routes
@@ -162,6 +127,31 @@ def generate_image(prompt, size="1024x1024", quality="standard"):
     return response.data[0].url
 
 
+def easyocr_reader(image):
+    # Initialize the client
+    client = vision.ImageAnnotatorClient()
+
+    # Convert the image to bytes
+    image = Image.fromarray(np.array(image))
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG")
+    content = buffered.getvalue()
+
+    # Create an image object
+    image = vision.Image(content=content)
+
+    # Perform text detection
+    response = client.text_detection(image=image)
+    texts = response.text_annotations
+
+    # Check for errors in the response
+    if response.error.message:
+        raise Exception(f'{response.error.message}')
+
+    # Extract the detected text
+    results = [text.description for text in texts]
+
+    return ' '.join(results)
 
 
 @app.callback(
