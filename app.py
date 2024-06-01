@@ -2,7 +2,7 @@ import base64
 import io
 import threading
 from PIL import Image
-import easyocr
+
 from pdf2image import convert_from_bytes
 import dash
 from dash.dependencies import Input, Output, State
@@ -13,12 +13,16 @@ import numpy as np
 import dash_bootstrap_components as dbc
 from flask import Flask
 from flask_basicauth import BasicAuth
+from google.cloud import vision
 
 client = OpenAI(api_key=os.environ['OPENAI_API_KEY'])
 
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+
+
 server = Flask(__name__)
 
-server.config['BASIC_AUTH_USERNAME'] = os.environ.get('BASIC_AUTH_USERNAME')  # Replace with your desired username
+server.config['BASIC_AUTH_USERNAME'] = os.environ.get('BASIC_AUTH_PASSWORD')  # Replace with your desired username
 server.config['BASIC_AUTH_PASSWORD'] = os.environ.get('BASIC_AUTH_PASSWORD')  # Replace with your desired password
 server.config['BASIC_AUTH_FORCE'] = True
 # This will force BasicAuth on all routes
@@ -124,9 +128,30 @@ def generate_image(prompt, size="1024x1024", quality="standard"):
 
 
 def easyocr_reader(image):
-    reader = easyocr.Reader(["ru", "rs_cyrillic", "uk", "en"], gpu=False)  # Assume no GPU available
-    results = reader.readtext(np.array(image))
-    return ' '.join([result[1] for result in results])
+    # Initialize the client
+    client = vision.ImageAnnotatorClient()
+
+    # Convert the image to bytes
+    image = Image.fromarray(np.array(image))
+    buffered = io.BytesIO()
+    image.save(buffered, format="JPEG")
+    content = buffered.getvalue()
+
+    # Create an image object
+    image = vision.Image(content=content)
+
+    # Perform text detection
+    response = client.text_detection(image=image)
+    texts = response.text_annotations
+
+    # Check for errors in the response
+    if response.error.message:
+        raise Exception(f'{response.error.message}')
+
+    # Extract the detected text
+    results = [text.description for text in texts]
+
+    return ' '.join(results)
 
 
 @app.callback(
@@ -216,4 +241,3 @@ def stop_request(n_clicks):
 
 if __name__ == '__main__':
     app.run_server(debug=True)
-
