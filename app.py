@@ -102,7 +102,7 @@ stop_flag = threading.Event()
 
 def process_with_openai(text_pic, input_system, input_user):
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o-2024-08-06",
         messages=[
             {"role": "system", "content": input_system},
             {"role": "user", "content": input_user},
