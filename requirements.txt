@@ -10,7 +10,7 @@ openai==1.2.3
 Flask==2.2.5
 Flask-BasicAuth==0.2.0
 gunicorn
-torch==2.2.1
+torch==2.6.0
 torchvision
 gevent 
 google-cloud-vision==3.7.2
